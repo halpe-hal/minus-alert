@@ -15,6 +15,10 @@ CATEGORY_TO_GROUPID = {
     "ベーグル": "C509df9d6d2ac74ae53e0aa1e8ea962ad"
 }
 
+# DB接続
+def get_connection():
+    return sqlite3.connect(DB_FILE, check_same_thread=False)
+
 # 期限切れデータの削除
 def cleanup_expired():
     today_str = datetime.today().strftime("%Y-%m-%d")
@@ -25,10 +29,6 @@ def cleanup_expired():
     conn.close()
 
 cleanup_expired()
-
-# DB接続
-def get_connection():
-    return sqlite3.connect(DB_FILE, check_same_thread=False)
 
 # データ取得
 def fetch_minus(subcategories):
