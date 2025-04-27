@@ -72,7 +72,7 @@ def update_minus(id, new_count):
 LINE_ACCESS_TOKEN = "lszhy7usClELTs8XrUl5WUgz2eczgYDv8ej9BdTK4wGa1bH27e8Yaw1wErd8bieRYWEkjTvJXwmVv3c7rTVw/K7aUS4HOCwxd5jTpnohzUxn7+0eCRRAmlH6+LIJow4sAgPK8jELBzasnl9Nqo9/kAdB04t89/1O/w1cDnyilFU="
 
 CATEGORY_TO_GROUPID = {
-    "ランチ": "C2addcfb0a7d3375c310ff01e42a1dc30",
+    "ランチ": "C8d56836dc70888a14020791659542796",
     "ディナー": "C3b6bce67563680bf0b97736fff6dfd17",
     "ベーグル": "C509df9d6d2ac74ae53e0aa1e8ea962ad"
 }
