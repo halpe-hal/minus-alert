@@ -21,10 +21,11 @@ CATEGORY_TO_ACCESS_TOKEN = {
 }
 
 CATEGORY_TO_GROUPID = {
-    "ランチ": "C2addcfb0a7d3375c310ff01e42a1dc30",
-    "ディナー": "C19ec6409b4971ad50d9d1df02bd5c8d7",
-    "ベーグル": "C6621b61d98e8d1323137db7b0ba9e28c"
+    "ランチ": "C8d56836dc70888a14020791659542796",
+    "ディナー": "C3b6bce67563680bf0b97736fff6dfd17",
+    "ベーグル": "C509df9d6d2ac74ae53e0aa1e8ea962ad"
 }
+
 
 CATEGORY_TO_CONTACT = {
     "ランチ": "ヘルプ可能な方は【笹子MGR】へ個人LINEお願いします🙇‍♀️",
