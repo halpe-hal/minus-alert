@@ -34,9 +34,9 @@ DEADLINE_GROUP_ID = os.getenv("LINE_GROUP_ID_DEADLINE")
 
 
 CATEGORY_TO_CONTACT = {
-    "ランチ": "ヘルプ可能な方は【笹子MGR】へ個人LINEお願いします🙇‍♀️",
-    "ディナー": "ヘルプ可能な方は【田島店長】へ個人LINEお願いします🙇‍♀️",
-    "ベーグル": "ヘルプ可能な方は【堀井店長】へ個人LINEお願いします🙇‍♀️"
+    "ランチ": "ヘルプ可能な方は【ランチ】のグループLINEへ連絡お願いします🙇‍♀️",
+    "ディナー": "ヘルプ可能な方は【ディナー】のグループLINEへ連絡お願いします🙇‍♀️",
+    "ベーグル": "ヘルプ可能な方は【ベーグル】のグループLINEへ連絡お願いします🙇‍♀️"
 }
 
 # --- 共通関数 ---
@@ -104,14 +104,14 @@ def check_and_notify_deadline_reminder():
         text = (
             "⚠️シフト提出締切日まで【あと3日】です！\n\n"
             "提出が遅れる方は、\n\n"
-            "ランチ：笹子MGR\nディナー：田島店長\nベーグル：堀井店長\n\n"
+            "ランチ：笹子店長\nディナー：立川店長\nベーグル：堀井店長\n\n"
             "まで必ず連絡ください！"
         )
     elif days_left == 2:
         text = (
             "⚠️シフト提出締切日まで【あと2日】です！\n\n"
             "提出が遅れる方は、\n\n"
-            "ランチ：笹子MGR\nディナー：田島店長\nベーグル：堀井店長\n\n"
+            "ランチ：笹子店長\nディナー：立川店長\nベーグル：堀井店長\n\n"
             "まで必ず連絡ください！"
         )
     elif days_left == 1:
@@ -119,7 +119,7 @@ def check_and_notify_deadline_reminder():
             "⚠️【明日】がシフト提出締切日です！\n"
             "まだ提出していない方は提出お願いします🙇‍♀️\n\n"
             "提出が遅れる方は、\n\n"
-            "ランチ：笹子MGR\nディナー：田島店長\nベーグル：堀井店長\n\n"
+            "ランチ：笹子店長\nディナー：立川店長\nベーグル：堀井店長\n\n"
             "まで必ず連絡ください！"
         )
 
@@ -164,24 +164,22 @@ def main():
         group_data.setdefault(group, {}).setdefault(category_full, []).append((date_display, time_range, minus_count))
 
     for group, cats in group_data.items():
-        urgent_found = False
+        # urgent_found は削除して常時通知に変更
         message = "⚠️シフトご協力お願いします⚠️\n\n"
 
-        for subcat, entries in cats.items():
-            urgent_entries = []
-            for date_display, time_range, minus_count in entries:
-                if date_display in urgent_days:
-                    urgent_found = True
-                urgent_entries.append((date_display, time_range, minus_count))
+        has_minus = False  # ←このグループに1件でもマイナスがあるか確認用
 
-            if urgent_entries:
+        for subcat, entries in cats.items():
+            if entries:
+                has_minus = True
                 message += f"{subcat}\n"
-                for date_display, time_range, minus_count in urgent_entries:
+                for date_display, time_range, minus_count in entries:
                     suffix = "🆘" if date_display in urgent_days else ""
                     message += f"{date_display} {time_range} ▲{minus_count}人{suffix}\n"
                 message += "\n"
 
-        if urgent_found:
+        # --- マイナスが1件でもあれば通知 ---
+        if has_minus:
             message += "ーーーーーーーーー\n\n"
             message += CATEGORY_TO_CONTACT[group]
             send_line_notification(group, message.strip())
