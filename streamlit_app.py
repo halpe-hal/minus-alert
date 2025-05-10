@@ -337,4 +337,3 @@ else:
         send_group_notification(selected_group, category_groups[selected_group])
 
         st.success("通知を送信しました！")
-
