@@ -4,8 +4,8 @@ import requests
 from pytz import timezone
 
 # --- Supabase設定 ---
-SUPABASE_URL = "https://svexgvaaeeszdtsbggnf.supabase.co"
-SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2ZXhndmFhZWVzemR0c2JnZ25mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NDkyMzcsImV4cCI6MjA2MTIyNTIzN30.JgR8PN33icGZ4kkGZ9x1AyqDij5n-otn3OklH6AL3Rk"
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_API_KEY = st.secrets["SUPABASE_API_KEY"]
 
 headers = {
     "apikey": SUPABASE_API_KEY,
@@ -14,15 +14,15 @@ headers = {
 
 # --- LINE設定（カテゴリ別トークンとグループID） ---
 CATEGORY_TO_ACCESS_TOKEN = {
-    "ランチ": "6M5PMUNYoSUixhWH4I+30dDAKrivSLe/AwKu8ZyQXXTspV7MoTc1GazU+zXhJcVbZtSlN8pdcB1dB3S+GepXCXbGAIEBGKQy2yN/IC2Tk6CZj6kZ8+pdXKV5khWVfOb6MgUC+3cBxh1JXSxYfew5jAdB04t89/1O/w1cDnyilFU=",
-    "ディナー": "6M5PMUNYoSUixhWH4I+30dDAKrivSLe/AwKu8ZyQXXTspV7MoTc1GazU+zXhJcVbZtSlN8pdcB1dB3S+GepXCXbGAIEBGKQy2yN/IC2Tk6CZj6kZ8+pdXKV5khWVfOb6MgUC+3cBxh1JXSxYfew5jAdB04t89/1O/w1cDnyilFU=",
-    "ベーグル": "6M5PMUNYoSUixhWH4I+30dDAKrivSLe/AwKu8ZyQXXTspV7MoTc1GazU+zXhJcVbZtSlN8pdcB1dB3S+GepXCXbGAIEBGKQy2yN/IC2Tk6CZj6kZ8+pdXKV5khWVfOb6MgUC+3cBxh1JXSxYfew5jAdB04t89/1O/w1cDnyilFU="
+    "ランチ": st.secrets["LINE_ACCESS_TOKENS"]["lunch"],
+    "ディナー": st.secrets["LINE_ACCESS_TOKENS"]["dinner"],
+    "ベーグル": st.secrets["LINE_ACCESS_TOKENS"]["bagel"],
 }
 
 CATEGORY_TO_GROUPID = {
-    "ランチ": "Ce3c37690580375b1f8674f290e366094",
-    "ディナー": "C821b5fe2d3171cde78d2bf25a874d948",
-    "ベーグル": "C83182a53096526b830955ad7473b6d5b"
+    "ランチ": st.secrets["LINE_GROUP_IDS"]["lunch"],
+    "ディナー": st.secrets["LINE_GROUP_IDS"]["dinner"],
+    "ベーグル": st.secrets["LINE_GROUP_IDS"]["bagel"],
 }
 
 # --- 共通関数 ---
@@ -156,11 +156,10 @@ def get_current_deadline():
 
 # --- 提出締切をLINEグループに通知する関数 ---
 def notify_deadline_to_line(deadline_date):
-    access_token = list(CATEGORY_TO_ACCESS_TOKEN.values())[0]  # 共通トークン使用
-    group_id = "C0f919991046a4dc2ae4445f5e82758df"
+    access_token = st.secrets["LINE_ACCESS_TOKENS"]["lunch"]  # 共通トークンがランチと同じならこう
+    group_id = st.secrets["LINE_GROUP_IDS"]["deadline"]
 
-    # 🔽 年を省略して / 区切り表示に変更
-    formatted_date = deadline_date.strftime("%-m/%-d")  # Linux/mac の場合（Windowsなら "%#m/%#d"）
+    formatted_date = deadline_date.strftime("%-m/%-d")
     message = f"⚠️シフト提出締切日は\n【{formatted_date}】です！\n提出遅れないようにお願いします🙇‍♀️"
 
     headers_line = {

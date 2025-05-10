@@ -2,10 +2,14 @@ import requests
 import time
 from datetime import datetime, timedelta
 from pytz import timezone
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # --- Supabase設定 ---
-SUPABASE_URL = "https://svexgvaaeeszdtsbggnf.supabase.co"
-SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2ZXhndmFhZWVzemR0c2JnZ25mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NDkyMzcsImV4cCI6MjA2MTIyNTIzN30.JgR8PN33icGZ4kkGZ9x1AyqDij5n-otn3OklH6AL3Rk"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_API_KEY = os.getenv("SUPABASE_API_KEY")
 
 headers = {
     "apikey": SUPABASE_API_KEY,
@@ -15,16 +19,18 @@ headers = {
 
 # --- LINE設定 ---
 CATEGORY_TO_ACCESS_TOKEN = {
-    "ランチ": "6M5PMUNYoSUixhWH4I+30dDAKrivSLe/AwKu8ZyQXXTspV7MoTc1GazU+zXhJcVbZtSlN8pdcB1dB3S+GepXCXbGAIEBGKQy2yN/IC2Tk6CZj6kZ8+pdXKV5khWVfOb6MgUC+3cBxh1JXSxYfew5jAdB04t89/1O/w1cDnyilFU=",
-    "ディナー": "6M5PMUNYoSUixhWH4I+30dDAKrivSLe/AwKu8ZyQXXTspV7MoTc1GazU+zXhJcVbZtSlN8pdcB1dB3S+GepXCXbGAIEBGKQy2yN/IC2Tk6CZj6kZ8+pdXKV5khWVfOb6MgUC+3cBxh1JXSxYfew5jAdB04t89/1O/w1cDnyilFU=",
-    "ベーグル": "6M5PMUNYoSUixhWH4I+30dDAKrivSLe/AwKu8ZyQXXTspV7MoTc1GazU+zXhJcVbZtSlN8pdcB1dB3S+GepXCXbGAIEBGKQy2yN/IC2Tk6CZj6kZ8+pdXKV5khWVfOb6MgUC+3cBxh1JXSxYfew5jAdB04t89/1O/w1cDnyilFU="
+    "ランチ": os.getenv("LINE_ACCESS_TOKEN_LUNCH"),
+    "ディナー": os.getenv("LINE_ACCESS_TOKEN_DINNER"),
+    "ベーグル": os.getenv("LINE_ACCESS_TOKEN_BAGEL"),
 }
 
 CATEGORY_TO_GROUPID = {
-    "ランチ": "Ce3c37690580375b1f8674f290e366094",
-    "ディナー": "C821b5fe2d3171cde78d2bf25a874d948",
-    "ベーグル": "C83182a53096526b830955ad7473b6d5b"
+    "ランチ": os.getenv("LINE_GROUP_ID_LUNCH"),
+    "ディナー": os.getenv("LINE_GROUP_ID_DINNER"),
+    "ベーグル": os.getenv("LINE_GROUP_ID_BAGEL"),
 }
+
+DEADLINE_GROUP_ID = os.getenv("LINE_GROUP_ID_DEADLINE")
 
 
 CATEGORY_TO_CONTACT = {
@@ -79,8 +85,8 @@ def send_line_notification(group_key, message, retry=1):
 
 # --- 提出締切リマインド通知 ---
 def check_and_notify_deadline_reminder():
-    group_id = "C0f919991046a4dc2ae4445f5e82758df"
-    access_token = CATEGORY_TO_ACCESS_TOKEN["ランチ"]  # 共通アカウント利用
+    group_id = os.getenv("LINE_GROUP_ID_DEADLINE")
+    access_token = os.getenv("LINE_ACCESS_TOKEN_LUNCH")  # 共通アカウント
 
     url = f"{SUPABASE_URL}/rest/v1/shift_deadline?select=deadline&order=created_at.desc&limit=1"
     response = requests.get(url, headers=headers)
@@ -95,11 +101,27 @@ def check_and_notify_deadline_reminder():
         return
 
     if days_left == 3:
-        text = "⚠️シフト提出締切日まで【あと3日】です！\n\n提出が遅れる方は、\n\nランチ：笹子MGR\nディナー：田島店長\nベーグル：堀井店長\n\nまで必ず連絡ください！"
+        text = (
+            "⚠️シフト提出締切日まで【あと3日】です！\n\n"
+            "提出が遅れる方は、\n\n"
+            "ランチ：笹子MGR\nディナー：田島店長\nベーグル：堀井店長\n\n"
+            "まで必ず連絡ください！"
+        )
     elif days_left == 2:
-        text = "⚠️シフト提出締切日まで【あと2日】です！\n\n提出が遅れる方は、\n\nランチ：笹子MGR\nディナー：田島店長\nベーグル：堀井店長\n\nまで必ず連絡ください！"
+        text = (
+            "⚠️シフト提出締切日まで【あと2日】です！\n\n"
+            "提出が遅れる方は、\n\n"
+            "ランチ：笹子MGR\nディナー：田島店長\nベーグル：堀井店長\n\n"
+            "まで必ず連絡ください！"
+        )
     elif days_left == 1:
-        text = "⚠️【明日】がシフト提出締切日です！\nまだ提出していない方は提出お願いします🙇‍♀️\n\n提出が遅れる方は、\n\nランチ：笹子MGR\nディナー：田島店長\nベーグル：堀井店長\n\nまで必ず連絡ください！"
+        text = (
+            "⚠️【明日】がシフト提出締切日です！\n"
+            "まだ提出していない方は提出お願いします🙇‍♀️\n\n"
+            "提出が遅れる方は、\n\n"
+            "ランチ：笹子MGR\nディナー：田島店長\nベーグル：堀井店長\n\n"
+            "まで必ず連絡ください！"
+        )
 
     headers_line = {
         "Content-Type": "application/json",
