@@ -1,99 +1,193 @@
-import json
-from datetime import datetime, timedelta
 import requests
+import time
+from datetime import datetime, timedelta
+from pytz import timezone
+from dotenv import load_dotenv
 import os
 
-# ファイルパス
-DATA_FILE = "minus_data.json"
-LOG_FILE = "notified_log.json"
+load_dotenv()
 
-# LINE設定
-LINE_ACCESS_TOKEN = "lszhy7usClELTs8XrUl5WUgz2eczgYDv8ej9BdTK4wGa1bH27e8Yaw1wErd8bieRYWEkjTvJXwmVv3c7rTVw/K7aUS4HOCwxd5jTpnohzUxn7+0eCRRAmlH6+LIJow4sAgPK8jELBzasnl9Nqo9/kAdB04t89/1O/w1cDnyilFU="
-CATEGORY_TO_GROUPID = {
-    "ランチ": "C2addcfb0a7d3375c310ff01e42a1dc30",
-    "ディナー": "C19ec6409b4971ad50d9d1df02bd5c8d7",
-    "ベーグル": ""
+# --- Supabase設定 ---
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_API_KEY = os.getenv("SUPABASE_API_KEY")
+
+headers = {
+    "apikey": SUPABASE_API_KEY,
+    "Authorization": f"Bearer {SUPABASE_API_KEY}",
+    "Content-Type": "application/json",
 }
 
-NOTICE_DAYS_BEFORE = [7, 3, 1]
+# --- LINE設定 ---
+CATEGORY_TO_ACCESS_TOKEN = {
+    "ランチ": os.getenv("LINE_ACCESS_TOKEN_LUNCH"),
+    "ディナー": os.getenv("LINE_ACCESS_TOKEN_DINNER"),
+    "ベーグル": os.getenv("LINE_ACCESS_TOKEN_BAGEL"),
+}
 
-def load_log():
-    if not os.path.exists(LOG_FILE):
-        return []
-    with open(LOG_FILE, "r") as f:
-        return json.load(f)
+CATEGORY_TO_GROUPID = {
+    "ランチ": os.getenv("LINE_GROUP_ID_LUNCH"),
+    "ディナー": os.getenv("LINE_GROUP_ID_DINNER"),
+    "ベーグル": os.getenv("LINE_GROUP_ID_BAGEL"),
+}
 
-def save_log(log_data):
-    with open(LOG_FILE, "w") as f:
-        json.dump(log_data, f, ensure_ascii=False, indent=2)
+DEADLINE_GROUP_ID = os.getenv("LINE_GROUP_ID_DEADLINE")
 
-def send_line_notification(group_id, message):
-    if not group_id:
-        return
-    headers = {
+
+CATEGORY_TO_CONTACT = {
+    "ランチ": "ヘルプ可能な方は【笹子MGR】へ個人LINEお願いします🙇‍♀️",
+    "ディナー": "ヘルプ可能な方は【田島店長】へ個人LINEお願いします🙇‍♀️",
+    "ベーグル": "ヘルプ可能な方は【堀井店長】へ個人LINEお願いします🙇‍♀️"
+}
+
+# --- 共通関数 ---
+
+def get_today_jst():
+    jst = timezone('Asia/Tokyo')
+    return datetime.now(jst).date()
+
+def cleanup_expired():
+    today_str = get_today_jst().strftime("%Y-%m-%d")
+    url = f"{SUPABASE_URL}/rest/v1/minus?date_origin=lt.{today_str}"
+    response = requests.delete(url, headers=headers)
+    if response.status_code in (200, 204):
+        print(f"🧹 {today_str}より前を削除", flush=True)
+
+def fetch_all_minus():
+    today_str = get_today_jst().strftime("%Y-%m-%d")
+    params = {
+        "select": "*",
+        "date_origin": f"gte.{today_str}",
+        "order": "date_origin"
+    }
+    response = requests.get(f"{SUPABASE_URL}/rest/v1/minus", headers=headers, params=params)
+    return response.json() if response.status_code == 200 else []
+
+def send_line_notification(group_key, message, retry=1):
+    access_token = CATEGORY_TO_ACCESS_TOKEN[group_key]
+    group_id = CATEGORY_TO_GROUPID[group_key]
+    headers_line = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {LINE_ACCESS_TOKEN}"
+        "Authorization": f"Bearer {access_token}"
     }
     payload = {
         "to": group_id,
         "messages": [{"type": "text", "text": message}]
     }
-    response = requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json=payload)
-    print("📨 通知送信結果：", response.status_code)
+
+    for attempt in range(retry + 1):
+        response = requests.post("https://api.line.me/v2/bot/message/push", headers=headers_line, json=payload)
+        print(f"📨 {group_key} 通知結果 (try {attempt+1}): {response.status_code}", flush=True)
+        if response.status_code == 200:
+            return
+        elif response.status_code == 429 and attempt < retry:
+            print("⏳ 429エラー、10秒待機", flush=True)
+            time.sleep(10)
+
+# --- 提出締切リマインド通知 ---
+def check_and_notify_deadline_reminder():
+    group_id = os.getenv("LINE_GROUP_ID_DEADLINE")
+    access_token = os.getenv("LINE_ACCESS_TOKEN_LUNCH")  # 共通アカウント
+
+    url = f"{SUPABASE_URL}/rest/v1/shift_deadline?select=deadline&order=created_at.desc&limit=1"
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200 or not response.json():
+        return
+
+    deadline = datetime.strptime(response.json()[0]["deadline"], "%Y-%m-%d").date()
+    today = get_today_jst()
+    days_left = (deadline - today).days
+
+    if days_left not in [3, 2, 1]:
+        return
+
+    if days_left == 3:
+        text = (
+            "⚠️シフト提出締切日まで【あと3日】です！\n\n"
+            "提出が遅れる方は、\n\n"
+            "ランチ：笹子MGR\nディナー：田島店長\nベーグル：堀井店長\n\n"
+            "まで必ず連絡ください！"
+        )
+    elif days_left == 2:
+        text = (
+            "⚠️シフト提出締切日まで【あと2日】です！\n\n"
+            "提出が遅れる方は、\n\n"
+            "ランチ：笹子MGR\nディナー：田島店長\nベーグル：堀井店長\n\n"
+            "まで必ず連絡ください！"
+        )
+    elif days_left == 1:
+        text = (
+            "⚠️【明日】がシフト提出締切日です！\n"
+            "まだ提出していない方は提出お願いします🙇‍♀️\n\n"
+            "提出が遅れる方は、\n\n"
+            "ランチ：笹子MGR\nディナー：田島店長\nベーグル：堀井店長\n\n"
+            "まで必ず連絡ください！"
+        )
+
+    headers_line = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {access_token}"
+    }
+    payload = {
+        "to": group_id,
+        "messages": [{"type": "text", "text": text}]
+    }
+
+    requests.post("https://api.line.me/v2/bot/message/push", headers=headers_line, json=payload)
+    print(f"📅 締切リマインド通知（{days_left}日前）送信", flush=True)
+
+# --- メイン処理 ---
 
 def main():
-    today = datetime.today().date()
-    notified_log = load_log()
+    print("🚀 notify_auto.py 実行開始", flush=True)
+    check_and_notify_deadline_reminder()
+    cleanup_expired()
 
-    with open(DATA_FILE, "r") as f:
-        minus_list = json.load(f)
+    today = get_today_jst()
+    urgent_days = [(today + timedelta(days=i)).strftime("%m/%d") for i in range(4)]
+    records = fetch_all_minus()
 
-    # グループごと → サブカテゴリごと → データ一覧
-    group_records = {"ランチ": {}, "ディナー": {}, "ベーグル": {}}
+    group_data = {"ランチ": {}, "ディナー": {}, "ベーグル": {}}
 
-    for item in minus_list:
-        category_full = item["カテゴリ"]
-        date_str = item["日付元"]
-        date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-        days_before = (date_obj - today).days
+    for record in records:
+        category_full = record["category"]
+        date_display = record["date_display"]
+        time_range = record["time_range"]
+        minus_count = record["minus_count"]
 
-        if days_before not in NOTICE_DAYS_BEFORE:
-            continue
-
-        unique_key = f"{category_full}_{date_str}_{days_before}"
-        if unique_key in notified_log:
-            continue
-
-        # グループカテゴリを決定
         if "ランチ" in category_full:
-            group_key = "ランチ"
+            group = "ランチ"
         elif "ディナー" in category_full:
-            group_key = "ディナー"
+            group = "ディナー"
         else:
-            group_key = "ベーグル"
+            group = "ベーグル"
 
-        if category_full not in group_records[group_key]:
-            group_records[group_key][category_full] = []
-        group_records[group_key][category_full].append(item)
+        group_data.setdefault(group, {}).setdefault(category_full, []).append((date_display, time_range, minus_count))
 
-        notified_log.append(unique_key)
+    for group, cats in group_data.items():
+        urgent_found = False
+        message = "⚠️シフトご協力お願いします⚠️\n\n"
 
-    # グループごとに通知を作成
-    for group, subcats in group_records.items():
-        if not subcats:
-            continue
+        for subcat, entries in cats.items():
+            urgent_entries = []
+            for date_display, time_range, minus_count in entries:
+                if date_display in urgent_days:
+                    urgent_found = True
+                urgent_entries.append((date_display, time_range, minus_count))
 
-        message = "🆘まだ埋まっていないマイナス日です！\n"
+            if urgent_entries:
+                message += f"{subcat}\n"
+                for date_display, time_range, minus_count in urgent_entries:
+                    suffix = "🆘" if date_display in urgent_days else ""
+                    message += f"{date_display} {time_range} ▲{minus_count}人{suffix}\n"
+                message += "\n"
 
-        for subcat, records in sorted(subcats.items()):
-            message += f"\n{subcat}\n"
-            sorted_records = sorted(records, key=lambda x: x["日付元"])
-            for r in sorted_records:
-                message += f"{r['日付']} {r['時間帯']} ▲{r['マイナス人数']}人\n"
+        if urgent_found:
+            message += "ーーーーーーーーー\n\n"
+            message += CATEGORY_TO_CONTACT[group]
+            send_line_notification(group, message.strip())
+            time.sleep(3)
 
-        send_line_notification(CATEGORY_TO_GROUPID[group], message.strip())
-
-    save_log(notified_log)
+    print("✅ notify_auto.py 実行完了", flush=True)
 
 if __name__ == "__main__":
     main()
