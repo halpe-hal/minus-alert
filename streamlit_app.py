@@ -113,11 +113,11 @@ def send_group_notification(group_key, subcategories):
     message += "ーーーーーーーーー\n\n"
 
     if group_key == "ランチ":
-        message += "ヘルプ可能な方は【笹子MGR】へ個人LINEお願いします🙇‍♀️"
+        message += "ヘルプ可能な方は【ランチ】のグループLINEへ連絡お願いします🙇‍♀️"
     elif group_key == "ディナー":
-        message += "ヘルプ可能な方は【田島店長】へ個人LINEお願いします🙇‍♀️"
+        message += "ヘルプ可能な方は【ディナー】のグループLINEへ連絡お願いします🙇‍♀️"
     elif group_key == "ベーグル":
-        message += "ヘルプ可能な方は【堀井店長】へ個人LINEお願いします🙇‍♀️"
+        message += "ヘルプ可能な方は【ベーグル】のグループLINEへ連絡お願いします🙇‍♀️"
 
     headers_line = {
         "Content-Type": "application/json",
